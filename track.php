@@ -98,5 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['tracking_number'])) {
             </div>
         <?php endif; ?>
     </div>
+
+    <!-- Chatbot Widget -->
+    <?php include 'chatbot-widget.php'; ?>
+
 </body>
 </html>

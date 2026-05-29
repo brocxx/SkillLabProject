@@ -400,6 +400,9 @@ foreach ($products as $p) {
         </div>
     </div>
 
+    <!-- Chatbot Widget -->
+    <?php include 'chatbot-widget.php'; ?>
+
     <!-- Client-side filter specifically for dashboard column layouts -->
     <script>
         function filterDashboard() {

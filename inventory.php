@@ -123,6 +123,9 @@ try {
         </div>
     </div>
 
+    <!-- Chatbot Widget -->
+    <?php include 'chatbot-widget.php'; ?>
+
     <!-- Neat, lightning-fast vanilla Javascript live filter -->
     <script>
         function filterInventory() {
