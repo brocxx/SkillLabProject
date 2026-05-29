@@ -41,7 +41,7 @@ try {
                 <?php endif; ?>
                 <a href="inventory.php" class="active">View Inventory</a>
                 <a href="track.php">Track Shipment</a>
-                <a href="admin-dashboard.php?action=logout" class="btn-danger" style="color: white; padding: 6px 12px;">Logout</a>
+                <a href="index.php?action=logout" class="btn-danger" style="color: white; padding: 6px 12px;">Logout</a>
             </nav>
         </header>
 
@@ -78,7 +78,10 @@ try {
                     <?php if (empty($products)): ?>
                         <tr>
                             <td colspan="6" style="text-align: center; color: #7f8c8d; padding: 30px;">
-                                No products found in inventory. <a href="index.php">Add the first product!</a>
+                                No products found in inventory.
+                                <?php if ($_SESSION['role'] === 'admin'): ?>
+                                    <a href="admin-dashboard.php">Add the first product!</a>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php else: ?>

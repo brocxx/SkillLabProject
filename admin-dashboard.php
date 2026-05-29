@@ -211,14 +211,18 @@ foreach ($products as $p) {
         <?php endif; ?>
 
         <!-- Analytics Section -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-            <div style="background: white; padding: 20px; border-radius: 6px; border: 1px solid var(--border-color);">
-                <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px;">Stock Levels (Recent Products)</h3>
-                <canvas id="stockChart" height="200"></canvas>
+        <div style="display: flex; gap: 20px; margin-bottom: 30px; flex-wrap: wrap;">
+            <div style="background: white; padding: 20px; border-radius: 6px; border: 1px solid var(--border-color); flex: 1; min-width: 400px; display: flex; flex-direction: column; align-items: center;">
+                <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px; align-self: flex-start; width: 100%;">Stock Levels (Recent Products)</h3>
+                <div style="width: 450px; height: 250px; display: flex; justify-content: center; align-items: center; margin-top: 10px;">
+                    <canvas id="stockChart" width="450" height="250"></canvas>
+                </div>
             </div>
-            <div style="background: white; padding: 20px; border-radius: 6px; border: 1px solid var(--border-color);">
-                <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px;">Product Distribution by Category</h3>
-                <canvas id="categoryChart" height="200"></canvas>
+            <div style="background: white; padding: 20px; border-radius: 6px; border: 1px solid var(--border-color); flex: 1; min-width: 400px; display: flex; flex-direction: column; align-items: center;">
+                <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px; align-self: flex-start; width: 100%;">Product Distribution by Category</h3>
+                <div style="width: 400px; height: 250px; display: flex; justify-content: center; align-items: center; margin-top: 10px;">
+                    <canvas id="categoryChart" width="400" height="250"></canvas>
+                </div>
             </div>
         </div>
 
@@ -439,8 +443,7 @@ foreach ($products as $p) {
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: false,
                 scales: { y: { beginAtZero: true } }
             }
         });
@@ -455,8 +458,7 @@ foreach ($products as $p) {
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false
+                responsive: false
             }
         });
     </script>
