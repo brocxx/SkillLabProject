@@ -13,8 +13,8 @@ session_start();
 require_once 'db.php';
 
 // 1. Session Protection Check
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: admin-login.php");
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: index.php");
     exit;
 }
 
@@ -85,7 +85,7 @@ foreach ($products as $product) {
         </div>
 
         <!-- Detailed Inventory Grid -->
-        <h2>Inventory Asset breakdown</h2>
+        <h2>Inventory Asset Breakdown</h2>
         <div class="table-responsive">
             <table>
                 <thead>

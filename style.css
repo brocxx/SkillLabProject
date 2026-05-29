@@ -122,7 +122,7 @@ textarea {
     font-family: inherit;
     font-size: 14px;
     color: inherit;
-    background-color: #fafbfc;
+    background-color: #fafbfa;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -224,7 +224,7 @@ th {
 }
 
 tr:hover {
-    background-color: #fafbfc;
+    background-color: #fafbfa;
 }
 
 .action-links {

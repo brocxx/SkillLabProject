@@ -10,9 +10,14 @@
 session_start();
 require_once 'db.php';
 
+if (!isset($_SESSION['role'])) {
+    header("Location: index.php");
+    exit;
+}
+
 // Fetch all products, sorted by the newest addition first
 try {
-    $stmt = $pdo->query("SELECT * FROM products ORDER BY id DESC");
+    $stmt = $pdo->query("SELECT p.*, w.name AS warehouse_name FROM products p LEFT JOIN warehouses w ON p.warehouse_id = w.id ORDER BY p.id DESC");
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     die("Error retrieving inventory data: " . $e->getMessage());
@@ -31,9 +36,12 @@ try {
         <header>
             <h1>Inventory Portal</h1>
             <nav class="nav-links">
-                <a href="index.html">Add Product</a>
+                <?php if ($_SESSION['role'] === 'admin'): ?>
+                    <a href="admin-dashboard.php">Admin Dashboard</a>
+                <?php endif; ?>
                 <a href="inventory.php" class="active">View Inventory</a>
-                <a href="admin-login.php">Admin Login</a>
+                <a href="track.php">Track Shipment</a>
+                <a href="admin-dashboard.php?action=logout" class="btn-danger" style="color: white; padding: 6px 12px;">Logout</a>
             </nav>
         </header>
 
@@ -59,7 +67,7 @@ try {
                 <thead>
                     <tr>
                         <th style="width: 25%;">Product Name</th>
-                        <th style="width: 15%;">Category</th>
+                        <th style="width: 15%;">Category / Loc.</th>
                         <th style="width: 15%;">Quantity</th>
                         <th style="width: 15%;">Unit Price</th>
                         <th style="width: 20%;">Description</th>
@@ -70,14 +78,17 @@ try {
                     <?php if (empty($products)): ?>
                         <tr>
                             <td colspan="6" style="text-align: center; color: #7f8c8d; padding: 30px;">
-                                No products found in inventory. <a href="index.html">Add the first product!</a>
+                                No products found in inventory. <a href="index.php">Add the first product!</a>
                             </td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($products as $product): ?>
                             <tr>
                                 <td><strong><?php echo htmlspecialchars($product['name']); ?></strong></td>
-                                <td><span style="color: #7f8c8d;"><?php echo htmlspecialchars($product['category']); ?></span></td>
+                                <td>
+                                    <span style="color: #7f8c8d;"><?php echo htmlspecialchars($product['category']); ?></span><br>
+                                    <small style="color: #bdc3c7;">&#127981; <?php echo htmlspecialchars($product['warehouse_name'] ?? 'Unassigned'); ?></small>
+                                </td>
                                 <td>
                                     <?php 
                                         $qty = (int)$product['quantity'];

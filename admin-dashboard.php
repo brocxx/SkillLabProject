@@ -14,8 +14,8 @@ session_start();
 require_once 'db.php';
 
 // 1. Session Protection Check
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
-    header("Location: admin-login.php");
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: index.php");
     exit;
 }
 
@@ -25,10 +25,8 @@ if (isset($_GET['action'])) {
     
     // LOGOUT
     if ($action === 'logout') {
-        unset($_SESSION['admin_logged_in']);
-        unset($_SESSION['admin_user']);
         session_destroy();
-        header("Location: admin-login.php");
+        header("Location: index.php");
         exit;
     }
     
@@ -63,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_action'])) {
     $quantity = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 0;
     $price = isset($_POST['price']) ? (float)$_POST['price'] : 0.00;
     $description = isset($_POST['description']) ? trim($_POST['description']) : '';
+    $warehouse_id = !empty($_POST['warehouse_id']) ? (int)$_POST['warehouse_id'] : null;
     
     // Basic validation
     $errors = [];
@@ -75,13 +74,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_action'])) {
         if ($form_action === 'add') {
             // INSERT product
             try {
-                $stmt = $pdo->prepare("INSERT INTO products (name, category, quantity, price, description) VALUES (:name, :category, :quantity, :price, :description)");
+                $stmt = $pdo->prepare("INSERT INTO products (name, category, quantity, price, description, warehouse_id) VALUES (:name, :category, :quantity, :price, :description, :warehouse_id)");
                 $stmt->execute([
                     ':name' => $name,
                     ':category' => $category,
                     ':quantity' => $quantity,
                     ':price' => $price,
-                    ':description' => $description
+                    ':description' => $description,
+                    ':warehouse_id' => $warehouse_id
                 ]);
                 $_SESSION['success_message'] = "Product '<strong>" . htmlspecialchars($name) . "</strong>' added successfully.";
             } catch (PDOException $e) {
@@ -91,13 +91,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['form_action'])) {
             // UPDATE product
             $id = (int)$_POST['id'];
             try {
-                $stmt = $pdo->prepare("UPDATE products SET name = :name, category = :category, quantity = :quantity, price = :price, description = :description WHERE id = :id");
+                $stmt = $pdo->prepare("UPDATE products SET name = :name, category = :category, quantity = :quantity, price = :price, description = :description, warehouse_id = :warehouse_id WHERE id = :id");
                 $stmt->execute([
                     ':name' => $name,
                     ':category' => $category,
                     ':quantity' => $quantity,
                     ':price' => $price,
                     ':description' => $description,
+                    ':warehouse_id' => $warehouse_id,
                     ':id' => $id
                 ]);
                 $_SESSION['success_message'] = "Product '<strong>" . htmlspecialchars($name) . "</strong>' updated successfully.";
@@ -130,12 +131,38 @@ if (isset($_GET['action']) && $_GET['action'] === 'edit' && isset($_GET['id'])) 
     }
 }
 
+// 4.5 Fetch available warehouses
+$warehouses = [];
+try {
+    $stmt = $pdo->query("SELECT id, name, location FROM warehouses ORDER BY name ASC");
+    $warehouses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {}
+
 // 5. Fetch all products for display
 try {
-    $stmt = $pdo->query("SELECT * FROM products ORDER BY id DESC");
+    $stmt = $pdo->query("SELECT p.*, w.name AS warehouse_name FROM products p LEFT JOIN warehouses w ON p.warehouse_id = w.id ORDER BY p.id DESC");
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     die("Error retrieving inventory data: " . $e->getMessage());
+}
+
+// 6. Prepare Analytics Data
+$chartDataProducts = [];
+$chartDataStock = [];
+$categoryCounts = [];
+
+foreach ($products as $p) {
+    // Top 10 products for bar chart (otherwise it gets too crowded)
+    if (count($chartDataProducts) < 10) {
+        $chartDataProducts[] = $p['name'];
+        $chartDataStock[] = $p['quantity'];
+    }
+    
+    // Aggregate by category
+    if (!isset($categoryCounts[$p['category']])) {
+        $categoryCounts[$p['category']] = 0;
+    }
+    $categoryCounts[$p['category']]++;
 }
 ?>
 <!DOCTYPE html>
@@ -145,6 +172,7 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Inventory System</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container" style="max-width: 1200px;">
@@ -155,6 +183,9 @@ try {
             </div>
             <nav class="nav-links">
                 <a href="inventory.php" target="_blank">View Public Portal ↗</a>
+                <a href="admin-dashboard.php" class="active">Products</a>
+                <a href="admin-warehouses.php">Warehouses</a>
+                <a href="admin-shipments.php">Shipments</a>
                 <a href="admin-report.php">Generate Report</a>
                 <a href="admin-dashboard.php?action=logout" class="btn-danger" style="color: white; padding: 6px 12px;">Logout</a>
             </nav>
@@ -178,6 +209,18 @@ try {
                 ?>
             </div>
         <?php endif; ?>
+
+        <!-- Analytics Section -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+            <div style="background: white; padding: 20px; border-radius: 6px; border: 1px solid var(--border-color);">
+                <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px;">Stock Levels (Recent Products)</h3>
+                <canvas id="stockChart" height="200"></canvas>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 6px; border: 1px solid var(--border-color);">
+                <h3 style="margin-top: 0; color: #2c3e50; font-size: 16px;">Product Distribution by Category</h3>
+                <canvas id="categoryChart" height="200"></canvas>
+            </div>
+        </div>
 
         <div class="dashboard-grid">
             
@@ -215,6 +258,18 @@ try {
                                 <textarea id="description" name="description"><?php echo htmlspecialchars($edit_product['description']); ?></textarea>
                             </div>
 
+                            <div class="form-group">
+                                <label for="warehouse_id">Warehouse Location</label>
+                                <select id="warehouse_id" name="warehouse_id">
+                                    <option value="">-- Select a Warehouse (Optional) --</option>
+                                    <?php foreach ($warehouses as $w): ?>
+                                        <option value="<?php echo htmlspecialchars($w['id']); ?>" <?php echo ($edit_product['warehouse_id'] == $w['id']) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($w['name'] . ' - ' . $w['location']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
                             <div class="form-group" style="display: flex; gap: 10px; margin-top: 30px;">
                                 <button type="submit" class="btn btn-primary" style="flex: 2;">Save Changes</button>
                                 <a href="admin-dashboard.php" class="btn btn-secondary" style="flex: 1; display: inline-flex; align-items: center; justify-content: center;">Cancel</a>
@@ -250,6 +305,18 @@ try {
                                 <textarea id="description" name="description" placeholder="Product specifications, details..."></textarea>
                             </div>
 
+                            <div class="form-group">
+                                <label for="warehouse_id">Warehouse Location</label>
+                                <select id="warehouse_id" name="warehouse_id">
+                                    <option value="">-- Select a Warehouse (Optional) --</option>
+                                    <?php foreach ($warehouses as $w): ?>
+                                        <option value="<?php echo htmlspecialchars($w['id']); ?>">
+                                            <?php echo htmlspecialchars($w['name'] . ' - ' . $w['location']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
                             <div class="form-group" style="margin-top: 30px;">
                                 <button type="submit" class="btn btn-primary" style="width: 100%;">Add to Inventory</button>
                             </div>
@@ -279,7 +346,7 @@ try {
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Category</th>
+                                <th>Category / Loc.</th>
                                 <th>Stock</th>
                                 <th>Price</th>
                                 <th style="width: 120px; text-align: center;">Actions</th>
@@ -296,7 +363,10 @@ try {
                                 <?php foreach ($products as $product): ?>
                                     <tr <?php echo ($is_edit_mode && $edit_product['id'] == $product['id']) ? 'style="background-color: rgba(22, 160, 133, 0.08);"' : ''; ?>>
                                         <td><strong><?php echo htmlspecialchars($product['name']); ?></strong></td>
-                                        <td><span style="color: #7f8c8d; font-size: 13px;"><?php echo htmlspecialchars($product['category']); ?></span></td>
+                                        <td>
+                                            <span style="color: #7f8c8d; font-size: 13px;"><?php echo htmlspecialchars($product['category']); ?></span><br>
+                                            <small style="color: #bdc3c7;">&#127981; <?php echo htmlspecialchars($product['warehouse_name'] ?? 'Unassigned'); ?></small>
+                                        </td>
                                         <td>
                                             <?php 
                                                 $qty = (int)$product['quantity'];
@@ -351,6 +421,44 @@ try {
                 }
             }
         }
+    </script>
+    <script>
+        // Chart Initialization
+        const ctxStock = document.getElementById('stockChart').getContext('2d');
+        const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+
+        new Chart(ctxStock, {
+            type: 'bar',
+            data: {
+                labels: <?php echo json_encode($chartDataProducts); ?>,
+                datasets: [{
+                    label: 'Stock Quantity',
+                    data: <?php echo json_encode($chartDataStock); ?>,
+                    backgroundColor: '#3498db',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        new Chart(ctxCategory, {
+            type: 'doughnut',
+            data: {
+                labels: <?php echo json_encode(array_keys($categoryCounts)); ?>,
+                datasets: [{
+                    data: <?php echo json_encode(array_values($categoryCounts)); ?>,
+                    backgroundColor: ['#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6', '#34495e', '#e67e22', '#1abc9c']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
     </script>
 </body>
 </html>
